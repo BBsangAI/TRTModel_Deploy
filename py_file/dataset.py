@@ -21,7 +21,7 @@ class GetData():
         self.width = width
         self.height = height
         # 初始化共享内存块，大小为（sample_duration,height,width,3）
-        self.frame_shape = (self.need_sample_duration,3,height,width)             
+        self.frame_shape = (self.need_sample_duration,height,width,3)             
         self.shared_mem = shared_memory.SharedMemory(create=True, name='shared_memory1', size=np.prod(self.frame_shape)* np.dtype(np.float32).itemsize)
         # 使用锁和信号量保证线程安全
         self.lock = mp.Lock()
@@ -61,6 +61,11 @@ class GetData():
             # 图像transform后添加到图像队列直到满足帧数
             if self.spatial_transform is not None:
                 frame_pil = self.spatial_transform(frame_pil)
+            '''================== TEST:保存图像到本地 ========================'''
+            # file_name = "../images_test/output_"+str(frame_count)+".jpg"
+            # if cv2.imwrite(file_name, frame):
+            #     print(f"save{file_name} successful!")
+            '''================== TEST:保存图像到本地 ========================'''
             frames.append(frame_pil)
             frame_count += 1
             if frame_count == self.need_sample_duration:
@@ -76,7 +81,7 @@ class GetData():
     def write_to_shared_memory(self, frames):
         print("writing....")
         frames_tensor = torch.stack(frames)  # 堆叠所有frame为一个Tensor
-       # frames_tensor = frames_tensor.permute(0, 2, 3, 1)  # 转换为 (sample_duration, height, width, 3)
+        frames_tensor = frames_tensor.permute(0, 2, 3, 1)  # 转换为 (sample_duration, height, width, 3)
         frames_np = frames_tensor.numpy()  # 将Tensor转换为numpy数组
         with self.lock:    # 退出with时自动释放锁
             np_shm = np.ndarray(self.frame_shape, dtype=np.float32, buffer=self.shared_mem.buf)
@@ -88,7 +93,7 @@ class GetData():
     '''============== ======================= ================'''
     '''============== ======================= ================'''
 norm_method = transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-crop_method = transforms.Resize((112, 112))
+crop_method = transforms.CenterCrop(112)
 spatial_transform = transforms.Compose([
         crop_method,
         transforms.ToTensor(),

@@ -93,16 +93,16 @@ int TensorRT_Inference(std::vector<cv::Mat> inputs, std::string engine_path){
     assert(inputIndex == 0);
     assert(outputIndex == 1);
     void* buffers[2];
-    cudaMalloc(&buffers[inputIndex], 1 * 32 * 3 * 112 * 112 * sizeof(float));
+    cudaMalloc(&buffers[inputIndex], 1 * 16 * 3 * 112 * 112 * sizeof(float));
     cudaMalloc(&buffers[outputIndex], 1 * 7 * sizeof(float));
-    std::vector<float> input_data(32 * 3 * 112 * 112);
-    for(int i=0;i<inputs.size(); ++i){
-        cv::Mat resized_image;
-        inputs[i].convertTo(resized_image, CV_32FC3); // 转换到 float
-        std::memcpy(&input_data[i * 3 * 112 * 112], resized_image.data, 3 * 112 * 112 * sizeof(float));
-    }
+    //std::vector<float> input_data(32 * 3 * 112 * 112);
+    // for(int i=0;i<inputs.size(); ++i){
+    //     cv::Mat resized_image;
+    //     inputs[i].convertTo(resized_image, CV_32FC3); // 转换到 float
+    //     std::memcpy(&input_data[i * 3 * 112 * 112], resized_image.data, 3 * 112 * 112 * sizeof(float));
+    // }
    nvinfer1::Dims dims;
-    dims.nbDims = 5; // 4D 数据
+    dims.nbDims = 5; // 5D 数据
     dims.d[0] = 1;   // batch size
     dims.d[1] = 3;  // 通道数
     dims.d[2] = 16;  // 深度
@@ -110,6 +110,16 @@ int TensorRT_Inference(std::vector<cv::Mat> inputs, std::string engine_path){
     dims.d[4] = 112; // 宽度
     context->setBindingDimensions(inputIndex, dims);
 
+    size_t totalSize = 32 * 3 * 112 * 112 * sizeof(float);
+    std::vector<float> h_inputs(totalSize);  // 主机上的输入数据
+    for (size_t i = 0; i < 32; ++i) {
+        cv::Mat& img = inputs[i];
+       
+        // 将图像数据复制到 h_inputs
+        std::memcpy(h_inputs.data() + i * 3 * 112 * 112, img.ptr<float>(), 3 * 112 * 112 * sizeof(float));
+    }
+
+    cudaMemcpyAsync(buffers[inputIndex], h_inputs.data(), 1 * 3 * 112 * 112 * sizeof(float), cudaMemcpyHostToDevice);
     // 使用 enqueueV2 进行推理
     context->enqueueV2(buffers, 0, nullptr);
 

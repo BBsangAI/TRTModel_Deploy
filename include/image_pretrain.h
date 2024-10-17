@@ -36,6 +36,7 @@ public:
     std::vector<cv::Mat> GetFramesFromShm(const char * shm_name);
     void captureVideo();
     void displayVideo();
+    void save_images(std::vector<cv::Mat> images);   /* '''保存图片与本地，用于测试是否真正实时读取到了共享内存中的数据''' */
 
 
 private:

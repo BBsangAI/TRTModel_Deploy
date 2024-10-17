@@ -37,9 +37,10 @@ void VideoProcessor::displayVideo() {
     cv::destroyAllWindows(); // 确保关闭所有窗口
 }
 
+// 获取数据
 std::vector<cv::Mat> VideoProcessor::GetFramesFromShm(const char * shm_name){
     const char * shm = shm_name;
-    const size_t frame_size = 32 * 112 * 112 * 3 * sizeof(float); 
+    const size_t frame_size = 32 * 3 * 112 * 112 * sizeof(float); 
     const char* sem_name = "my_semaphore1";
     int shm_fd = shm_open(shm_name, O_RDONLY, 0666);
     
@@ -69,7 +70,7 @@ std::vector<cv::Mat> VideoProcessor::GetFramesFromShm(const char * shm_name){
     std::vector<cv::Mat> images(32);
     for (int i = 0; i < 32; ++i) {
     // 每张图像的指针偏移
-    void* image_ptr = static_cast<char*>(ptr) + i * (112 * 112 * 3 * sizeof(float));  // void*可接受任何类型的指针，static_cast强制类型转换，char*为按字节进行指针运算
+    void* image_ptr = static_cast<char*>(ptr) + i * (3 * 112 * 112 * sizeof(float));  // void*可接受任何类型的指针，static_cast强制类型转换，char*为按字节进行指针运算
     images[i] = cv::Mat(112, 112, CV_32FC3, image_ptr).clone(); // 每张图像
     }
     // 清理
@@ -78,3 +79,20 @@ std::vector<cv::Mat> VideoProcessor::GetFramesFromShm(const char * shm_name){
     
     return images;
 }
+
+//保存图片数据到本地
+void VideoProcessor::save_images(std::vector<cv::Mat> images){
+    std::string filename = "";
+    cv::Mat image_uchar;
+    for(int i=0;i< images.size();i++){
+    images[i].convertTo(image_uchar, CV_8UC3, 255.0);
+    filename = "../images_test/output_" + std::to_string(i) + ".jpg";
+    bool success = cv::imwrite(filename,image_uchar);
+    if(success){
+        cout<<"图片"<<filename<<"已保存！"<<endl;
+     }
+     else
+      cout<<"图片"<<filename<<"保存失败！"<<endl;
+    }
+}
+
