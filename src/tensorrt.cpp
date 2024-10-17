@@ -93,9 +93,36 @@ int TensorRT_Inference(std::vector<cv::Mat> inputs, std::string engine_path){
     assert(inputIndex == 0);
     assert(outputIndex == 1);
     void* buffers[2];
-    cudaMalloc(&buffers[inputIndex], 1 * 16* 3 * 112 * 112 * sizeof(float));
+    cudaMalloc(&buffers[inputIndex], 1 * 32 * 3 * 112 * 112 * sizeof(float));
     cudaMalloc(&buffers[outputIndex], 1 * 7 * sizeof(float));
+    std::vector<float> input_data(32 * 3 * 112 * 112);
+    for(int i=0;i<inputs.size(); ++i){
+        cv::Mat resized_image;
+        inputs[i].convertTo(resized_image, CV_32FC3); // 转换到 float
+        std::memcpy(&input_data[i * 3 * 112 * 112], resized_image.data, 3 * 112 * 112 * sizeof(float));
+    }
+   nvinfer1::Dims dims;
+    dims.nbDims = 5; // 4D 数据
+    dims.d[0] = 1;   // batch size
+    dims.d[1] = 3;  // 通道数
+    dims.d[2] = 16;  // 深度
+    dims.d[3] = 112; // 高度
+    dims.d[4] = 112; // 宽度
+    context->setBindingDimensions(inputIndex, dims);
 
+    // 使用 enqueueV2 进行推理
+    context->enqueueV2(buffers, 0, nullptr);
+
+    std::vector<float> output_data(7); // 假设输出有 7 个元素
+    cudaMemcpyAsync(output_data.data(), buffers[outputIndex], 1 * 7 * sizeof(float), cudaMemcpyDeviceToHost);
+
+    cudaFree(buffers[inputIndex]);
+    cudaFree(buffers[outputIndex]);
+
+   for (size_t i = 0; i < output_data.size(); ++i) {
+        std::cout << "Output[" << i << "] = " << output_data[i] << std::endl;
+    }
+    return 1;
 
 }
 

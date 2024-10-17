@@ -69,8 +69,8 @@ std::vector<cv::Mat> VideoProcessor::GetFramesFromShm(const char * shm_name){
     std::vector<cv::Mat> images(32);
     for (int i = 0; i < 32; ++i) {
     // 每张图像的指针偏移
-    void* image_ptr = static_cast<char*>(ptr) + i * (112 * 112 * 3 * sizeof(float));
-    images[i] = cv::Mat(112, 112, CV_16FC3, image_ptr).clone(); // 每张图像
+    void* image_ptr = static_cast<char*>(ptr) + i * (112 * 112 * 3 * sizeof(float));  // void*可接受任何类型的指针，static_cast强制类型转换，char*为按字节进行指针运算
+    images[i] = cv::Mat(112, 112, CV_32FC3, image_ptr).clone(); // 每张图像
     }
     // 清理
     munmap(ptr, frame_size); // 解除映射
