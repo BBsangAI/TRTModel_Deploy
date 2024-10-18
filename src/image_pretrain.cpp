@@ -40,7 +40,7 @@ void VideoProcessor::displayVideo() {
 // 获取数据
 std::vector<cv::Mat> VideoProcessor::GetFramesFromShm(const char * shm_name){
     const char * shm = shm_name;
-    const size_t frame_size = 32 * 3 * 112 * 112 * sizeof(float); 
+    const size_t frame_size = 16 * 3 * 112 * 112 * sizeof(float); 
     const char* sem_name = "my_semaphore1";
     int shm_fd = shm_open(shm_name, O_RDONLY, 0666);
     
@@ -67,11 +67,12 @@ std::vector<cv::Mat> VideoProcessor::GetFramesFromShm(const char * shm_name){
     std::cout<<"map shared memory successful!"<<endl;
     
     //读取数据到cv::Mat
-    std::vector<cv::Mat> images(32);
-    for (int i = 0; i < 32; ++i) {
+    std::vector<cv::Mat> images(16);
+    for (int i = 0; i < 16; ++i) {
     // 每张图像的指针偏移
     void* image_ptr = static_cast<char*>(ptr) + i * (3 * 112 * 112 * sizeof(float));  // void*可接受任何类型的指针，static_cast强制类型转换，char*为按字节进行指针运算
-    images[i] = cv::Mat(112, 112, CV_32FC3, image_ptr).clone(); // 每张图像
+    cv::Mat image = cv::Mat(112, 112, CV_32FC3, image_ptr).clone(); // 原始图像 (112, 112, 3)  
+    images[i] = image;  // 存储结果
     }
     // 清理
     munmap(ptr, frame_size); // 解除映射
@@ -84,7 +85,7 @@ std::vector<cv::Mat> VideoProcessor::GetFramesFromShm(const char * shm_name){
 void VideoProcessor::save_images(std::vector<cv::Mat> images){
     std::string filename = "";
     cv::Mat image_uchar;
-    for(int i=0;i< images.size();i++){
+    for(int i=0;i< images.size();i++){ 
     images[i].convertTo(image_uchar, CV_8UC3, 255.0);
     filename = "../images_test/output_" + std::to_string(i) + ".jpg";
     bool success = cv::imwrite(filename,image_uchar);

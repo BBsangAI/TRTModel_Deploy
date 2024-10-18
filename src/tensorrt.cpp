@@ -101,7 +101,9 @@ int TensorRT_Inference(std::vector<cv::Mat> inputs, std::string engine_path){
     //     inputs[i].convertTo(resized_image, CV_32FC3); // 转换到 float
     //     std::memcpy(&input_data[i * 3 * 112 * 112], resized_image.data, 3 * 112 * 112 * sizeof(float));
     // }
-   nvinfer1::Dims dims;
+
+    
+    nvinfer1::Dims dims;
     dims.nbDims = 5; // 5D 数据
     dims.d[0] = 1;   // batch size
     dims.d[1] = 3;  // 通道数
@@ -110,16 +112,24 @@ int TensorRT_Inference(std::vector<cv::Mat> inputs, std::string engine_path){
     dims.d[4] = 112; // 宽度
     context->setBindingDimensions(inputIndex, dims);
 
-    size_t totalSize = 32 * 3 * 112 * 112 * sizeof(float);
+    size_t totalSize = 16 * 3 * 112 * 112 * sizeof(float);
     std::vector<float> h_inputs(totalSize);  // 主机上的输入数据
-    for (size_t i = 0; i < 32; ++i) {
-        cv::Mat& img = inputs[i];
-       
-        // 将图像数据复制到 h_inputs
-        std::memcpy(h_inputs.data() + i * 3 * 112 * 112, img.ptr<float>(), 3 * 112 * 112 * sizeof(float));
-    }
+    for (size_t i = 0; i < 16; ++i) {
 
-    cudaMemcpyAsync(buffers[inputIndex], h_inputs.data(), 1 * 3 * 112 * 112 * sizeof(float), cudaMemcpyHostToDevice);
+        cv::Mat& img = inputs[i]; // 获取当前图像，假设 inputs 是一个 cv::Mat 类型的向量
+        // Convert HWC to CHW 
+        for (int h = 0; h < 112; ++h) {
+            for (int w = 0; w < 112; ++w) {
+                for (int c = 0; c < 3; ++c) {
+                    int dstIdx = c * 16 * 112 * 112 + i * 112 * 112 + h * 112 + w; // 计算目标索引
+                    h_inputs[dstIdx] = img.at<cv::Vec3f>(h, w)[c]; // 复制数据
+                }
+            }
+        }
+
+    }
+    
+    cudaMemcpyAsync(buffers[inputIndex], h_inputs.data(), 1 * 3 * 16 * 112 * 112 * sizeof(float), cudaMemcpyHostToDevice);
     // 使用 enqueueV2 进行推理
     context->enqueueV2(buffers, 0, nullptr);
 
