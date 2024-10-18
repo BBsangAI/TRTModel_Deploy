@@ -40,7 +40,7 @@ class GetData():
         self.shared_mem.unlink()  # 释放共享内存
 
     def capture(self):
-        cap = cv2.VideoCapture("v4l2src device=/dev/video0 ! image/jpeg,width=1024,height=768,framerate=30/1 ! jpegdec ! videoconvert ! videoscale ! video/x-raw,width=180,height=150 ! videoflip method=horizontal-flip ! appsink", cv2.CAP_GSTREAMER)
+        cap = cv2.VideoCapture("v4l2src device=/dev/video0 ! image/jpeg,width=1024,height=768,framerate=30/1 ! jpegdec ! videoconvert ! videoscale ! video/x-raw,width=180,height=150 ! appsink", cv2.CAP_GSTREAMER)
         frame_count = 0
         frame = []
         frames = []

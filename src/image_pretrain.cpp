@@ -22,6 +22,7 @@ void VideoProcessor::captureVideo() {
             std::cerr << "Warning: Empty frame captured." << std::endl;
         }
     }
+
 }
 
 //显示视频
