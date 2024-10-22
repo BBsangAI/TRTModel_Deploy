@@ -1,6 +1,6 @@
 #include "common.h"
 #include <unistd.h> 
-#include <semaphore.h>
+
 
 using namespace std;
 //捕获视频流
@@ -39,24 +39,7 @@ void VideoProcessor::displayVideo() {
 }
 
 // 获取数据
-std::vector<cv::Mat> VideoProcessor::GetFramesFromShm(const char * shm_name){
-    const char * shm = shm_name;
-    const size_t frame_size = 16 * 3 * 112 * 112 * sizeof(float); 
-    const char* sem_name = "my_semaphore1";
-    int shm_fd = shm_open(shm_name, O_RDONLY, 0666);
-    
-    if (shm_fd == -1){
-        cerr<<"open shared file failed!"<<endl;
-        return std::vector<cv::Mat>();
-    }
-    std::cout<<"open shared file successful!!"<<endl;
-
-    sem_t* semaphore = sem_open(sem_name, 0);
-    if (semaphore == SEM_FAILED) {
-        std::cerr << "Failed to open semaphore!" << std::endl;
-        return cv::Mat();
-    }
-    std::cout<<"open semaphore"<<semaphore<<"successful!"<<endl;
+std::vector<cv::Mat> VideoProcessor::GetFramesFromShm(sem_t* semaphore, int shm_fd, const size_t frame_size){
     sem_wait(semaphore);
     // void* mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset)
     void* ptr = mmap(nullptr, frame_size, PROT_READ, MAP_SHARED, shm_fd, 0);   //映射共享内存
@@ -65,7 +48,6 @@ std::vector<cv::Mat> VideoProcessor::GetFramesFromShm(const char * shm_name){
         close(shm_fd);
         return std::vector<cv::Mat>();
     }
-    std::cout<<"map shared memory successful!"<<endl;
     
     //读取数据到cv::Mat
     std::vector<cv::Mat> images(16);
@@ -77,7 +59,7 @@ std::vector<cv::Mat> VideoProcessor::GetFramesFromShm(const char * shm_name){
     }
     // 清理
     munmap(ptr, frame_size); // 解除映射
-    close(shm_fd);           // 关闭共享内存文件描述符`1
+    //close(shm_fd);           // 关闭共享内存文件描述符`1
     
     return images;
 }

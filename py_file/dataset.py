@@ -15,7 +15,7 @@ class GetData():
                  width=112, 
                  height=112,
                  spatial_transform=None,
-                 sample_duration=16):
+                 sample_duration=2):
         self.need_sample_duration = sample_duration
         self.spatial_transform = spatial_transform
         self.width = width

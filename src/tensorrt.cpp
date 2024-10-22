@@ -1,6 +1,6 @@
 #include "common.h"
 #include <cuda_runtime.h>
-
+#include "class_output.h"
 using namespace nvinfer1;
 
 Logger logger;
@@ -54,7 +54,9 @@ void ONNX2TensorRT(std::string onnx_file_path, std::string engine_file_path){
 	std::cout << "convert onnx model to TensorRT engine model successfully!" << std::endl;
 }
 
-int TensorRT_Inference(std::vector<cv::Mat> inputs, std::string engine_path){
+
+
+int TensorRT::TensorRT_Construct(std::string engine_path){
     /*******************读取engine模型文件 *******************/
     /*******************读取engine模型文件 *******************/
     size_t size = 0;
@@ -80,7 +82,7 @@ int TensorRT_Inference(std::vector<cv::Mat> inputs, std::string engine_path){
     assert(runtime != nullptr);
     ICudaEngine* engine = runtime->deserializeCudaEngine(trtModelStream, size);  //反序列化引擎
     assert(engine != nullptr);
-    IExecutionContext* context = engine->createExecutionContext();
+    context = engine->createExecutionContext();
     assert(context != nullptr);
     delete[] trtModelStream;  //清理模型流内存
     assert(engine->getNbBindings() == 2);
@@ -88,61 +90,48 @@ int TensorRT_Inference(std::vector<cv::Mat> inputs, std::string engine_path){
     // for (int i = 0; i < numBindings; ++i) {
     // const char* bindingName = engine->getBindingName(i);  // 获取每个绑定的名称
     // std::cout << "Binding " << i << ": " << bindingName << std::endl;
-    const int inputIndex = engine->getBindingIndex("input.1");  // 使用实际的输入绑定名称
-    const int outputIndex = engine->getBindingIndex("978");     // 使用实际的输出绑定名称
-    assert(inputIndex == 0);
-    assert(outputIndex == 1);
-    void* buffers[2];
-    cudaMalloc(&buffers[inputIndex], 1 * 16 * 3 * 112 * 112 * sizeof(float));
-    cudaMalloc(&buffers[outputIndex], 1 * 7 * sizeof(float));
-    //std::vector<float> input_data(32 * 3 * 112 * 112);
-    // for(int i=0;i<inputs.size(); ++i){
-    //     cv::Mat resized_image;
-    //     inputs[i].convertTo(resized_image, CV_32FC3); // 转换到 float
-    //     std::memcpy(&input_data[i * 3 * 112 * 112], resized_image.data, 3 * 112 * 112 * sizeof(float));
-    // }
+    cudaMalloc(&buffers[inputIndex], 1 * samples * 3 * 112 * 112 * sizeof(float));
+    cudaMalloc(&buffers[outputIndex], 1 * classes * sizeof(float));
 
-    
     nvinfer1::Dims dims;
     dims.nbDims = 5; // 5D 数据
     dims.d[0] = 1;   // batch size
     dims.d[1] = 3;  // 通道数
-    dims.d[2] = 16;  // 深度
+    dims.d[2] = samples;  // 深度
     dims.d[3] = 112; // 高度
     dims.d[4] = 112; // 宽度
     context->setBindingDimensions(inputIndex, dims);
-
-    size_t totalSize = 16 * 3 * 112 * 112 * sizeof(float);
+}
+    
+int TensorRT::TensorRT_Inference(std::vector<cv::Mat> inputs){   
     std::vector<float> h_inputs(totalSize);  // 主机上的输入数据
-    for (size_t i = 0; i < 16; ++i) {
-
+    
+    for (size_t i = 0; i < samples; ++i) {
         cv::Mat& img = inputs[i]; // 获取当前图像，假设 inputs 是一个 cv::Mat 类型的向量
         // Convert HWC to CHW 
         for (int h = 0; h < 112; ++h) {
             for (int w = 0; w < 112; ++w) {
                 for (int c = 0; c < 3; ++c) {
-                    int dstIdx = c * 16 * 112 * 112 + i * 112 * 112 + h * 112 + w; // 计算目标索引
+                    int dstIdx = c * samples * 112 * 112 + i * 112 * 112 + h * 112 + w; // 计算目标索引
                     h_inputs[dstIdx] = img.at<cv::Vec3f>(h, w)[c]; // 复制数据
                 }
             }
         }
-
     }
     
-    cudaMemcpyAsync(buffers[inputIndex], h_inputs.data(), 1 * 3 * 16 * 112 * 112 * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpyAsync(buffers[inputIndex], h_inputs.data(), 1 * 3 * samples * 112 * 112 * sizeof(float), cudaMemcpyHostToDevice);
     // 使用 enqueueV2 进行推理
     context->enqueueV2(buffers, 0, nullptr);
-
-    std::vector<float> output_data(7); // 假设输出有 7 个元素
-    cudaMemcpyAsync(output_data.data(), buffers[outputIndex], 1 * 7 * sizeof(float), cudaMemcpyDeviceToHost);
-
-    cudaFree(buffers[inputIndex]);
-    cudaFree(buffers[outputIndex]);
-
-   for (size_t i = 0; i < output_data.size(); ++i) {
-        std::cout << "Output[" << i << "] = " << output_data[i] << std::endl;
-    }
+    
+    std::vector<float> output_data(classes); // 假设输出有 7 个元素
+    cudaMemcpyAsync(output_data.data(), buffers[outputIndex], 1 * classes * sizeof(float), cudaMemcpyDeviceToHost);
+    
+    int target_index = max_element(output_data.begin(), output_data.end()) - output_data.begin();
+    std::cout << "target = " << HandGesture_Classes[target_index] << std::endl;
+  
     return 1;
-
 }
+ 
+
+
 

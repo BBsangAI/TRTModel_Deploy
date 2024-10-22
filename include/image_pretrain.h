@@ -33,7 +33,7 @@ public:
         std::lock_guard<std::mutex> lock(frameMutex); // 确保线程安全
         return frame.clone(); // 返回当前帧的副本
     }
-    std::vector<cv::Mat> GetFramesFromShm(const char * shm_name);
+    std::vector<cv::Mat> GetFramesFromShm(sem_t* semaphore, int shm_fd, const size_t frame_size);
     void captureVideo();
     void displayVideo();
     void save_images(std::vector<cv::Mat> images);   /* '''保存图片与本地，用于测试是否真正实时读取到了共享内存中的数据''' */
