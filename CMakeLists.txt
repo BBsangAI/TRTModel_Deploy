@@ -4,6 +4,11 @@ cmake_minimum_required(VERSION 3.10)
 # 定义项目名称和语言
 project(AIgorithm LANGUAGES CXX)
 
+# 设置 C++ 标准为 C++11
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+
 # 查找所需要的包
 find_package(OpenCV REQUIRED)
 find_package(Threads REQUIRED)

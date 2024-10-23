@@ -15,5 +15,7 @@
 #include <sys/mman.h>   // for mmap, shm_open
 #include <fcntl.h>  
 #include <fstream>    //c++中文件被抽象为数据流
+#include <unistd.h> 
+#include <condition_variable> // 条件变量
 
 #endif

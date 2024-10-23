@@ -1,12 +1,11 @@
 #include "common.h"
 #include <cuda_runtime.h>
-#include "class_output.h"
 using namespace nvinfer1;
 
 Logger logger;
 // 模型导入阶段：创建builder--> 创建网络定义-->创建ONNX解析器-->使用解析器加载ONNX网路模型参数到定义好的网络
 // 构建引擎阶段：配置引擎（最大工作空间、模型精度等）-->创建引擎-->保存-->销毁
-void ONNX2TensorRT(std::string onnx_file_path, std::string engine_file_path){
+void TensorRT::ONNX2TensorRT(std::string onnx_file_path, std::string engine_file_path){
     // ---------------------------创建builder---------------------------
     IBuilder *builder = createInferBuilder(logger);
     // 创建网络定义
@@ -127,9 +126,9 @@ int TensorRT::TensorRT_Inference(std::vector<cv::Mat> inputs){
     cudaMemcpyAsync(output_data.data(), buffers[outputIndex], 1 * classes * sizeof(float), cudaMemcpyDeviceToHost);
     
     int target_index = max_element(output_data.begin(), output_data.end()) - output_data.begin();
-    std::cout << "target = " << HandGesture_Classes[target_index] << std::endl;
+   
   
-    return 1;
+    return target_index;
 }
  
 
