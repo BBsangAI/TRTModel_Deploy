@@ -72,6 +72,7 @@
         "__split_buffer": "cpp",
         "__tree": "cpp",
         "filesystem": "cpp",
-        "__mutex_base": "cpp"
+        "__mutex_base": "cpp",
+        "csignal": "cpp"
     }
 }

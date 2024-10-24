@@ -42,7 +42,7 @@ void VideoProcessor::displayVideo() {
 std::vector<cv::Mat> VideoProcessor::GetFramesFromShm(sem_t* semaphore, int shm_fd, const int frame_numns){
     sem_wait(semaphore);
     size_t frame_size = frame_numns * 3 * 112 * 112 * sizeof(float);
-    // void* mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset)
+    // void* mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) 
     void* ptr = mmap(nullptr, frame_size, PROT_READ, MAP_SHARED, shm_fd, 0);   //映射共享内存
     if(ptr == MAP_FAILED){
         cerr<< "Failed to map shared memory!" <<endl;
@@ -53,7 +53,6 @@ std::vector<cv::Mat> VideoProcessor::GetFramesFromShm(sem_t* semaphore, int shm_
     std::vector<cv::Mat> images(frame_numns);
     for (int i = 0; i < frame_numns; ++i) {
     // 每张图像的指针偏移
-    cout<<i<<endl;
     void* image_ptr = static_cast<char*>(ptr) + i * (3 * 112 * 112 * sizeof(float));  // void*可接受任何类型的指针，static_cast强制类型转换，char*为按字节进行指针运算
     cv::Mat image = cv::Mat(112, 112, CV_32FC3, image_ptr).clone(); // 原始图像 (112, 112, 3)  
     images[i] = image;  // 存储结果

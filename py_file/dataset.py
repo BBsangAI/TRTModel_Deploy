@@ -23,7 +23,7 @@ class GetData():
         self.width = width
         self.height = height
         # 初始化共享内存块，大小为（sample_duration,height,width,3）
-        self.frame_shape1 = (3,height,width,3)      
+        self.frame_shape1 = (2,height,width,3)      
         self.frame_shape2 = (16,height,width,3)          
         self.shared_mem1 = shared_memory.SharedMemory(create=True, name='shared_memory1', size=np.prod(self.frame_shape1)* np.dtype(np.float32).itemsize)    
         self.shared_mem2 = shared_memory.SharedMemory(create=True, name='shared_memory2', size=np.prod(self.frame_shape2)* np.dtype(np.float32).itemsize)    
@@ -66,7 +66,7 @@ class GetData():
         cap = cv2.VideoCapture("v4l2src device=/dev/video0 ! image/jpeg,width=1024,height=768,framerate=30/1 ! jpegdec ! videoconvert ! videoscale ! video/x-raw,width=180,height=150 ! appsink", cv2.CAP_GSTREAMER)
         frame_count = 0
         frame = []
-        frames = []
+        frames = []      
         if not cap.isOpened():
             print("Error: Could not open video source.")
             return;
@@ -100,16 +100,20 @@ class GetData():
                 frame_count += 1
                 if frame_count == self.need_sample_duration:
                 # 写入共享内存
-                    self.write_to_shared_memory(frames)
+                    if self.need_sample_duration == 16:
+                        self.write_to_shared_memory(frames, self.shared_mem2)
+                        self.signal_shared_mem.buf[0] = False
+                    else:
+                        self.write_to_shared_memory(frames, self.shared_mem1)
     '''==================写入共享内存========================'''
     '''==================写入共享内存========================'''
-    def write_to_shared_memory(self, frames):
+    def write_to_shared_memory(self, frames, inshared_mem):
         print("writing....")
         frames_tensor = torch.stack(frames)  # 堆叠所有frame为一个Tensor
         frames_tensor = frames_tensor.permute(0, 2, 3, 1)  # 转换为 (sample_duration, height, width, 3)
         frames_np = frames_tensor.numpy()  # 将Tensor转换为numpy数组
         with self.lock:    # 退出with时自动释放锁
-            np_shm = np.ndarray(self.frame_shape, dtype=np.float32, buffer=self.shared_mem.buf)
+            np_shm = np.ndarray((self.need_sample_duration,112,112,3), dtype=np.float32, buffer=inshared_mem.buf)
             np_shm[:] = frames_np[:]
         process_time = time.time() - self.start_time
         print(process_time)

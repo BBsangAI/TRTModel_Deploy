@@ -22,17 +22,18 @@ void handGestureDetection(InferenceParams& params){      // 手势检测线程�
     while(true){
         images = params.Video_Processor.GetFramesFromShm(params.frame_semaphore, params.shm_fd, clip_nums);
         //processor.save_images(images);
-        result = params.Engine.TensorRT_Inference(images);
-        std::cout << classes_map["IsHandGesture_class"][result] << std::endl;
+        result = params.Engine.TensorRT_Inference(images); 
+        //std::cout <<classes_map["IsHandGesture_class"][result] << std::endl;
         if(result == 1){ 
+            cout<<"detected"<<endl;
             std::unique_lock<std::mutex> lock(mtx);
             handGesture_detected = true;
             classification_done = false;       
             memcpy(signal_ptr, &handGesture_detected, sizeof(handGesture_detected));   
             convar.notify_all();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             convar.wait(lock, [] { return classification_done; });
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            }   
+        }   
     }
 }
 
@@ -44,7 +45,7 @@ void handGestureClassficition(InferenceParams& params){      // 手势分类线�
         std::unique_lock<std::mutex> lock(mtx);
         convar.wait(lock, [] { return handGesture_detected; }); // 等待手势检测线程通知
         images = params.Video_Processor.GetFramesFromShm(params.frame_semaphore, params.shm_fd, clip_nums);
-        //processor.save_images(images);
+        params.Video_Processor.save_images(images);
        
         result = params.Engine.TensorRT_Inference(images);
         std::cout << "target = " << classes_map["WhHandGesture_class"][result] << std::endl;
@@ -60,18 +61,20 @@ void handGestureClassficition(InferenceParams& params){      // 手势分类线�
 
 int main(){
      //-----------初始化定义-------------------------//
-    const char * shm_name = "shared_memory1";       // 共享内存名（dataset.py中创建）
+    const char * shm_name1 = "shared_memory1";       // 共享内存名（dataset.py中创建）
+    const char * shm_name2 = "shared_memory2";       // 共享内存名（dataset.py中创建）
     const char* frame_semname = "frame_semaphore";  //帧准备信号量（dataset.py中创建）
     const char* init_semname = "init_semaphore";    //初始化准备信号量（dataset.py中创建）
    
     std::string HandGesture_detector_model_path = "../model/gesture_recognition_model.engine";
     std::string HandGesture_classify_model_path = "../model/gesture_7classification_model.engine";
-    int shm_fd = 0;
+    int shm_fd1 = 0, shm_fd2 = 0;
     Params_init();
     //-----------尝试打开共享内存-------------------------//
     while (true) {
-        shm_fd = shm_open(shm_name, O_RDONLY, 0666);
-        if (shm_fd != -1) {
+        shm_fd1 = shm_open(shm_name1, O_RDONLY, 0666);
+        shm_fd2 = shm_open(shm_name2, O_RDONLY, 0666);
+        if (shm_fd1 != -1 && shm_fd2 != -1) {
             std::cout << "open shared file successful!!" << std::endl;
             break; // 成功打开，退出循环
         } else {
@@ -105,8 +108,8 @@ int main(){
     HandGesture_classify.TensorRT_Construct(HandGesture_classify_model_path);
     sem_post(init_semaphore);      // 通知python进程 初始化完成
 
-    InferenceParams HandGesture_detector_Params{HandGesture_detector, processor, frame_semaphore, shm_fd};    // 手势检测器参数
-    InferenceParams HandGesture_classify_Params{HandGesture_classify, processor, frame_semaphore, shm_fd};    // 手势分类器参数
+    InferenceParams HandGesture_detector_Params{HandGesture_detector, processor, frame_semaphore, shm_fd1};    // 手势检测器参数
+    InferenceParams HandGesture_classify_Params{HandGesture_classify, processor, frame_semaphore, shm_fd2};    // 手势分类器参数
 
     std::thread HandGestureDetect_thread(handGestureDetection, std::ref(HandGesture_detector_Params));
     std::thread HandGestureClass_thread(handGestureClassficition, std::ref(HandGesture_classify_Params)); 
